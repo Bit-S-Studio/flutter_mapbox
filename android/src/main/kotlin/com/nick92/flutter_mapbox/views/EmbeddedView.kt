@@ -23,24 +23,20 @@ class EmbeddedView(context: Context, activity: Activity, binding: MapActivityBin
     : PlatformView, EmbeddedNavigationView(context, activity, binding, accessToken) {
     private val viewId: Int = vId
     private val messenger: BinaryMessenger = binaryMessenger
-    private val options: MapInitOptions = MapInitOptions(context, textureView = true)
-    private var mapView = MapView(context, options)
-
-    init {
+    init{
         val arguments = args as Map<*, *>
         initFlutterChannelHandlers()
-        initNavigation(mapView, arguments)
+        initNavigation(arguments)
     }
 
     override fun initFlutterChannelHandlers() {
-        super.initFlutterChannelHandlers()
         methodChannel = MethodChannel(messenger, "flutter_mapbox/${viewId}")
         eventChannel = EventChannel(messenger, "flutter_mapbox/${viewId}/events")
+        super.initFlutterChannelHandlers()
     }
 
     override fun getView(): View {
-        val view: View = mapView;
-        return view;
+        return binding.root;
     }
 
     override fun dispose() {

@@ -60,8 +60,6 @@ import com.mapbox.navigation.ui.maps.camera.data.MapboxNavigationViewportDataSou
 import com.mapbox.navigation.ui.maps.camera.lifecycle.NavigationBasicGesturesHandler
 import com.mapbox.navigation.ui.maps.camera.state.NavigationCameraState
 import com.mapbox.navigation.ui.maps.camera.transition.NavigationCameraTransitionOptions
-import com.mapbox.navigation.ui.maps.camera.view.MapboxRecenterButton
-import com.mapbox.navigation.ui.maps.camera.view.MapboxRouteOverviewButton
 import com.mapbox.navigation.ui.maps.location.NavigationLocationProvider
 import com.mapbox.navigation.ui.maps.route.arrow.api.MapboxRouteArrowApi
 import com.mapbox.navigation.ui.maps.route.arrow.api.MapboxRouteArrowView
@@ -80,7 +78,6 @@ import com.mapbox.navigation.ui.voice.model.SpeechAnnouncement
 import com.mapbox.navigation.ui.voice.model.SpeechError
 import com.mapbox.navigation.ui.voice.model.SpeechValue
 import com.mapbox.navigation.ui.voice.model.SpeechVolume
-import com.mapbox.navigation.ui.voice.view.MapboxSoundButton
 import com.nick92.flutter_mapbox.databinding.MapActivityBinding
 import com.nick92.flutter_mapbox.models.MapBoxEvents
 import com.nick92.flutter_mapbox.models.MapBoxRouteProgressEvent
@@ -100,18 +97,17 @@ open class EmbeddedNavigationView(ctx: Context, act: Activity, bind: MapActivity
         eventChannel?.setStreamHandler(this)
     }
 
-    open fun initNavigation(mv: MapView, arguments: Map<*, *>) {
-        mapView = mv
-        mapboxMap = mapView.getMapboxMap()
+    open fun initNavigation(arguments: Map<*, *>) {
+        mapboxMap = binding.mapView.getMapboxMap()
 
-        mapView.compass.visibility = false
-        mapView.scalebar.enabled = false
+        binding.mapView.compass.visibility = true
+        binding.mapView.scalebar.enabled = false
 
         if(arguments != null)
             setOptions(arguments)
 
         // initialize the location puck
-        mapView.location.apply {
+        binding.mapView.location.apply {
             this.locationPuck = LocationPuck2D(
                 bearingImage = ContextCompat.getDrawable(
                     context,
@@ -144,12 +140,12 @@ open class EmbeddedNavigationView(ctx: Context, act: Activity, bind: MapActivity
         viewportDataSource = MapboxNavigationViewportDataSource(mapboxMap)
         navigationCamera = NavigationCamera(
             mapboxMap,
-            mapView.camera,
+            binding.mapView.camera,
             viewportDataSource
         )
         // set the animations lifecycle listener to ensure the NavigationCamera stops
         // automatically following the user location when the map is interacted with
-        mapView.camera.addCameraAnimationsLifecycleListener(
+        binding.mapView.camera.addCameraAnimationsLifecycleListener(
             NavigationBasicGesturesHandler(navigationCamera)
         )
         navigationCamera.registerNavigationCameraStateChangeObserver { navigationCameraState ->
@@ -159,7 +155,7 @@ open class EmbeddedNavigationView(ctx: Context, act: Activity, bind: MapActivity
                 NavigationCameraState.FOLLOWING -> binding.recenter.visibility = View.INVISIBLE
                 NavigationCameraState.TRANSITION_TO_OVERVIEW,
                 NavigationCameraState.OVERVIEW,
-                NavigationCameraState.IDLE -> binding.recenter.visibility = View.INVISIBLE
+                NavigationCameraState.IDLE -> binding.recenter.visibility = View.VISIBLE
             }
         }
         // set the padding values depending on screen orientation and visible view layout
@@ -257,28 +253,24 @@ open class EmbeddedNavigationView(ctx: Context, act: Activity, bind: MapActivity
             clearRouteAndStopNavigation()
         }
 
-        recenterButton = MapboxRecenterButton(context)
-        overviewButton = MapboxRouteOverviewButton(context)
-        soundButton = MapboxSoundButton(context)
-
-        recenterButton.setOnClickListener {
+        binding.recenter.setOnClickListener {
             navigationCamera.requestNavigationCameraToFollowing()
             binding.routeOverview.showTextAndExtend(BUTTON_ANIMATION_DURATION)
         }
-        overviewButton.setOnClickListener {
+        binding.routeOverview.setOnClickListener {
             navigationCamera.requestNavigationCameraToOverview()
             binding.recenter.showTextAndExtend(BUTTON_ANIMATION_DURATION)
         }
-        soundButton.setOnClickListener {
+        binding.soundButton.setOnClickListener {
             // mute/unmute voice instructions
             isVoiceInstructionsMuted = !isVoiceInstructionsMuted
         }
 
         // set initial sounds button state
-        soundButton.mute()
+        binding.soundButton.mute()
         isVoiceInstructionsMuted = true
 
-        mapView.gestures.addOnMapClickListener(mapClickListener)
+        binding.mapView.gestures.addOnMapClickListener(mapClickListener)
         // initialize navigation trip observers
         registerObservers()
         mapboxNavigation.startTripSession(withForegroundService = false)
@@ -414,7 +406,7 @@ open class EmbeddedNavigationView(ctx: Context, act: Activity, bind: MapActivity
                     isBuildingRoute = false
                     //Start Navigation again from new Point, if it was already in Progress
                     if (isNavigationInProgress) {
-                        startNavigation()
+                        startNavigate()
                     }
                 }
                 override fun onFailure(reasons: List<RouterFailure>,
@@ -434,7 +426,7 @@ open class EmbeddedNavigationView(ctx: Context, act: Activity, bind: MapActivity
     }
 
     private fun addPOIAnnotations(pois: HashMap<*, *>) {
-        val annotationApi = mapView?.annotations
+        val annotationApi = binding.mapView?.annotations
         pointAnnotationManager = annotationApi.createPointAnnotationManager()
 
         val parkingImage = ContextCompat.getDrawable(
@@ -497,7 +489,7 @@ open class EmbeddedNavigationView(ctx: Context, act: Activity, bind: MapActivity
         if(arguments != null)
             setOptions(arguments)
 
-        startNavigation()
+        startNavigate()
 
         if (FlutterMapboxPlugin.currentRoute != null) {
             result.success(true)
@@ -516,7 +508,7 @@ open class EmbeddedNavigationView(ctx: Context, act: Activity, bind: MapActivity
         }
     }
 
-    private fun startNavigation() {
+    private fun startNavigate() {
         isNavigationCanceled = false
 
         if (FlutterMapboxPlugin.currentRoute != null) {
@@ -527,7 +519,10 @@ open class EmbeddedNavigationView(ctx: Context, act: Activity, bind: MapActivity
             // show UI elements
             binding.soundButton.visibility = View.VISIBLE
             binding.routeOverview.visibility = View.VISIBLE
+            binding.tripProgressCard.visibility = View.VISIBLE
+            binding.stop.visibility = View.VISIBLE
             binding.tripProgressView.visibility = View.VISIBLE
+            binding.recenter.visibility = View.VISIBLE
 
             // move the camera to overview when new route is available
             navigationCamera.requestNavigationCameraToFollowing()
@@ -569,7 +564,7 @@ open class EmbeddedNavigationView(ctx: Context, act: Activity, bind: MapActivity
 
     private fun updateCamera(location: LatLng) {
         val mapAnimationOptions = MapAnimationOptions.Builder().duration(1500L).build()
-        mapView.camera.easeTo(
+        binding.mapView.camera.easeTo(
             CameraOptions.Builder()
                 // Centers the camera to the lng/lat specified.
                 .center(Point.fromLngLat(location.longitude, location.latitude))
@@ -793,19 +788,13 @@ open class EmbeddedNavigationView(ctx: Context, act: Activity, bind: MapActivity
      * MapView entry point obtained from the embedded view.
      * You need to get a new reference to this object whenever the [MapView] is recreated.
      */
-    private lateinit var mapView: MapView
+//    private lateinit var mapView: MapView
 
     /**
      * Mapbox Maps entry point obtained from the [MapView].
      * You need to get a new reference to this object whenever the [MapView] is recreated.
      */
     private lateinit var mapboxMap: MapboxMap
-
-    private lateinit var soundButton: MapboxSoundButton
-
-    private lateinit var overviewButton: MapboxRouteOverviewButton
-
-    private lateinit var recenterButton: MapboxRecenterButton
 
     /**
      * Mapbox Navigation entry point. There should only be one instance of this object for the app.

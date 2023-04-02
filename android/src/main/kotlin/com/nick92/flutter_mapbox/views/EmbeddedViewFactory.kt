@@ -3,9 +3,9 @@ package com.nick92.flutter_mapbox.views
 import android.app.Activity
 import android.content.Context
 import com.mapbox.mapboxsdk.Mapbox
+import com.nick92.flutter_mapbox.R
 import com.nick92.flutter_mapbox.utilities.PluginUtilities
 import com.nick92.flutter_mapbox.databinding.MapActivityBinding
-
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.StandardMessageCodec
 import io.flutter.plugin.platform.PlatformView
@@ -16,6 +16,7 @@ class EmbeddedViewFactory(private val messenger: BinaryMessenger, private val ac
         val binding = MapActivityBinding.inflate(this.activity.layoutInflater)
         val accessToken = PluginUtilities.getResourceFromContext(context,"mapbox_access_token")
         Mapbox.getInstance(context, accessToken)
+        activity.setTheme(R.style.Theme_AppCompat_NoActionBar)
         return EmbeddedView(context, activity, binding, messenger, viewId, args, accessToken)
     }
 }
